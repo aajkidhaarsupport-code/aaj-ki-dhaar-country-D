@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0d5c3a">
+<link rel="manifest" href="/manifest.json">
+<title>आज की धार — ताज़ा दूध सुबह 7 बजे दरवाज़े पर</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Hind:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+:root { --cd-green:#0d5c3a; --cd-green-dark:#083d26; --cd-green-light:#e8f5ee; --cd-gold:#d4af37; --cd-bg:#f4f6f8; }
+body { font-family:'Plus Jakarta Sans','Hind',sans-serif; background:var(--cd-bg); color:#1c1917; -webkit-tap-highlight-color:transparent; }
+.no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+.cd-vip-grad{background:linear-gradient(90deg,#1c1917 0%,#312514 50%,#1c1917 100%)}
+.cd-vip-ribbon{background:linear-gradient(90deg,#fef3c7 0%,#fde68a 100%);border:1px solid #f59e0b}
+.cd-gold-txt{background:linear-gradient(90deg,#fde68a,#f59e0b,#fde68a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+input,select,textarea{user-select:text}
+.line-clamp-1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-marker{display:none}
+@media print{body *{visibility:hidden}#printArea,#printArea *{visibility:visible}#printArea{position:absolute;left:0;top:0;width:100%;background:#fff;padding:20px}}
+</style>
+</head>
+<body class="pb-36">
+
+<div id="toastBox" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[92%] max-w-md pointer-events-none"></div>
+
+<!-- ============ HEADER (Country Delight style) ============ -->
+<header class="bg-white sticky top-0 z-40 shadow-xs border-b border-slate-200/80">
+  <div class="max-w-4xl mx-auto px-3.5 pt-2.5 pb-2 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div onclick="tapLogo()" class="w-10 h-10 rounded-2xl text-white flex flex-col items-center justify-center shadow-sm shrink-0 border-2 border-amber-300 cursor-pointer active:scale-90 transition" style="background:var(--cd-green)">
+        <i class="fa-solid fa-cow text-sm text-amber-300"></i>
+        <span class="text-[6px] font-extrabold tracking-widest uppercase">PURE</span>
+      </div>
+      <div class="min-w-0">
+        <div onclick="tapLogo()" class="flex items-center gap-1.5 cursor-pointer">
+          <h1 id="shopNameH" class="font-extrabold text-base sm:text-lg tracking-tight truncate" style="color:var(--cd-green)">आज की धार</h1>
+          <span class="border text-[9px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-1" style="background:var(--cd-green-light);color:var(--cd-green);border-color:var(--cd-green)">🌅 5-7 AM</span>
+        </div>
+        <button onclick="openLocModal()" class="text-[11px] text-slate-600 flex items-center gap-1 truncate max-w-[175px] sm:max-w-[270px] font-semibold">
+          <i class="fa-solid fa-location-dot" style="color:var(--cd-green)"></i>
+          <span id="hdrLocation" class="truncate">डिलीवरी पता चुनें</span>
+          <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+        </button>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button onclick="openAccount()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1.5 rounded-xl text-xs flex items-center gap-1" title="प्रोफ़ाइल">
+        <i class="fa-solid fa-user-check" style="color:var(--cd-green)"></i>
+        <span id="hdrUserShort" class="hidden md:inline font-extrabold text-[11px]">लॉगिन</span>
+      </button>
+      <button onclick="openVipModal()" class="cd-vip-grad text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-xs">
+        <i class="fa-solid fa-crown text-amber-400 text-xs"></i>
+        <div class="text-left leading-none"><span class="text-[8px] text-amber-200/80 font-bold block">VIP CLUB</span><span class="text-[10px] font-extrabold text-white" id="vipHdrStatus">JOIN VIP</span></div>
+      </button>
+      <button onclick="openWalletModal()" class="border px-2.5 py-1 rounded-xl flex items-center gap-1.5" style="background:var(--cd-green-light);color:var(--cd-green);border-color:var(--cd-green)">
+        <i class="fa-solid fa-wallet text-xs"></i>
+        <div class="text-left leading-none"><span class="text-[8px] font-bold opacity-75 block">WALLET</span><span class="text-xs font-extrabold">₹<span id="hdrWal">0</span></span></div>
+        <i class="fa-solid fa-circle-plus text-xs"></i>
+      </button>
+      <button id="adminBtn" onclick="openAdmin()" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-xl text-xs" title="एडमिन / राइडर"><i class="fa-solid fa-sliders" style="color:var(--cd-green)"></i></button>
+    </div>
+  </div>
+  <div class="max-w-4xl mx-auto px-3.5 pb-2">
+    <div class="relative flex items-center bg-[#f3f5f7] border border-slate-200/90 rounded-2xl px-3.5 py-2 focus-within:bg-white transition">
+      <i class="fa-solid fa-magnifying-glass text-sm mr-2.5" style="color:var(--cd-green)"></i>
+      <input id="cdSearchInp" oninput="renderProducts()" type="text" placeholder='खोजें "गाय का दूध (A2 Cow Milk)"...' class="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none">
+      <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-md shrink-0" style="background:var(--cd-green-light);color:var(--cd-green)">100% Pure</span>
+    </div>
+  </div>
+  <div class="bg-[#f8faf9] border-t border-slate-200/70">
+    <div class="max-w-4xl mx-auto px-3.5 py-1.5 flex items-center justify-between gap-2">
+      <div id="cdCalStrip" class="flex items-center gap-1.5 overflow-x-auto no-sb flex-1"></div>
+      <div class="bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-extrabold px-2 py-1 rounded-lg whitespace-nowrap flex items-center gap-1">
+        <i class="fa-regular fa-clock text-amber-600"></i><span id="cutoffClock">--:--:--</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="vacBar" class="hidden bg-rose-600 text-white text-xs px-4 py-2">
+  <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <span><i class="fa-solid fa-umbrella-beach mr-1"></i><b>वेकेशन मोड चालू है:</b> आपकी सुबह की सभी डिलीवरी रुकी हुई हैं।</span>
+    <button onclick="toggleVac()" class="bg-white text-rose-700 font-extrabold px-2.5 py-0.5 rounded">चालू करें</button>
+  </div>
+</div>
+<div id="lowBalBar" class="hidden bg-amber-100 border-b border-amber-300 text-amber-900 text-xs px-4 py-2">
+  <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+    <span id="lowBalTxt"></span>
+    <button onclick="openWalletModal()" class="bg-amber-500 text-white font-extrabold px-2.5 py-0.5 rounded shrink-0">रिचार्ज करें</button>
+  </div>
+</div>
+
+<!-- ============ STOREFRONT ============ -->
+<main class="max-w-4xl mx-auto px-3.5 pt-3 space-y-4">
+  <div class="cd-vip-grad rounded-2xl p-3.5 text-white shadow-md border border-amber-500/30 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 text-lg shrink-0"><i class="fa-solid fa-crown"></i></div>
+      <div>
+        <div class="flex items-center gap-1.5"><span class="text-xs sm:text-sm font-extrabold cd-gold-txt uppercase">आज की धार VIP MEMBERSHIP</span><span class="bg-amber-400 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded">UP TO 40% OFF</span></div>
+        <p class="text-[11px] text-slate-300 mt-0.5" id="vipSubText"></p>
+      </div>
+    </div>
+    <button onclick="openVipModal()" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-[11px] px-3 py-2 rounded-xl shrink-0 shadow">VIP क्लब देखें →</button>
+  </div>
+
+  <div id="heroBannerSlider" class="flex gap-3 overflow-x-auto no-sb snap-x"></div>
+  <div id="couponStripBox" class="flex items-center gap-2 overflow-x-auto no-sb py-0.5"></div>
+
+  <div class="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-2xs">
+    <div class="flex items-center justify-between mb-2.5">
+      <h3 class="font-extrabold text-xs sm:text-sm text-slate-800">Explore Categories (कैटेगरी चुनें)</h3>
+      <span id="prodCountTxt" class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full" style="background:var(--cd-green-light);color:var(--cd-green)"></span>
+    </div>
+    <div id="cdCatCircles" class="flex items-start gap-3 overflow-x-auto no-sb pb-1"></div>
+  </div>
+
+  <div class="space-y-2.5">
+    <div class="flex items-center justify-between px-1">
+      <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="activeCatHeading">सभी ताज़ा प्रोडक्ट्स</h2>
+      <span class="text-[11px] font-bold" style="color:var(--cd-green)"><i class="fa-regular fa-hand-pointer mr-1"></i>फोटो पर टैप करके विवरण देखें</span>
+    </div>
+    <div id="prodGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+  </div>
+
+  <footer class="text-center text-[11px] text-slate-500 py-4 space-y-1">
+    <div class="flex justify-center gap-3 font-bold" style="color:var(--cd-green)">
+      <button onclick="openHelp()">मदद</button><button onclick="openPolicy('terms')">नियम-शर्तें</button><button onclick="openPolicy('privacy')">प्राइवेसी</button><button onclick="openPolicy('refund')">रिफंड पॉलिसी</button>
+    </div>
+    <p id="footAddr"></p>
+  </footer>
+</main>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginModal" class="fixed inset-0 bg-slate-950/70 z-[60] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl">
+    <div class="flex justify-between items-center border-b pb-2">
+      <div><span class="text-[10px] font-extrabold uppercase" style="color:var(--cd-green)">आज की धार</span><h3 class="font-extrabold text-sm">🔐 लॉगिन / साइन-अप</h3></div>
+      <button onclick="$('loginModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="loginStep1" class="space-y-2.5 text-xs">
+      <label class="font-bold text-slate-600 block">अपना ईमेल लिखें — OTP आएगा:</label>
+      <input id="lgEmail" type="email" autocomplete="email" placeholder="aap@gmail.com" class="w-full border rounded-xl p-3 font-bold">
+      <button id="lgSendBtn" onclick="loginSend()" class="w-full text-white font-extrabold py-3 rounded-xl" style="background:var(--cd-green)">OTP भेजें</button>
+    </div>
+    <div id="loginStep2" class="hidden space-y-2.5 text-xs">
+      <p class="text-slate-500">OTP <b id="lgSentTo"></b> पर भेजा गया (स्पैम फ़ोल्डर भी देखें)</p>
+      <input id="lgCode" inputmode="numeric" maxlength="6" placeholder="6 अंकों का OTP" class="w-full border rounded-xl p-3 font-extrabold tracking-[6px] text-center text-lg">
+      <div class="bg-slate-50 border rounded-xl p-2.5 space-y-2">
+        <p class="font-bold text-slate-500">नए ग्राहक हैं? नीचे भरें (पुराने हैं तो छोड़ दें):</p>
+        <input id="lgName" placeholder="आपका नाम" class="w-full border rounded-lg p-2 font-bold">
+        <input id="lgPhone" inputmode="numeric" maxlength="10" placeholder="मोबाइल / WhatsApp नंबर" class="w-full border rounded-lg p-2 font-bold">
+        <input id="lgRef" placeholder="रेफ़रल कोड (अगर है)" class="w-full border rounded-lg p-2 font-bold uppercase">
+      </div>
+      <button id="lgVerifyBtn" onclick="loginVerify()" class="w-full text-white font-extrabold py-3 rounded-xl" style="background:var(--cd-green)">वेरिफाई करें</button>
+      <button onclick="$('loginStep2').classList.add('hidden');$('loginStep1').classList.remove('hidden')" class="w-full text-slate-500 font-bold py-1">← ईमेल बदलें</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PDP ============ -->
+<div id="pdpModal" class="fixed inset-0 bg-slate-950/70 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-[#f4f6f8] w-full max-w-xl rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+    <div class="bg-white px-4 py-3 border-b flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2 truncate pr-2">
+        <span class="text-amber-300 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase" style="background:var(--cd-green)">आज की धार PURE</span>
+        <h3 id="pdpTopTitle" class="font-extrabold text-xs sm:text-sm text-slate-800 truncate"></h3>
+      </div>
+      <button onclick="closePdp()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="overflow-y-auto p-3.5 sm:p-4 space-y-3.5 flex-1">
+      <div class="bg-white rounded-2xl p-3 border shadow-2xs relative">
+        <div id="pdpSlideTrack" onscroll="updateSlideDots()" class="flex overflow-x-auto snap-x snap-mandatory no-sb gap-3 scroll-smooth"></div>
+        <button onclick="stepPdpSlide(-1)" class="w-8 h-8 rounded-full bg-white/90 shadow border text-slate-700 flex items-center justify-center absolute left-5 top-1/2 -translate-y-1/2"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+        <button onclick="stepPdpSlide(1)" class="w-8 h-8 rounded-full bg-white/90 shadow border text-slate-700 flex items-center justify-center absolute right-5 top-1/2 -translate-y-1/2"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+        <div class="flex items-center justify-between mt-2.5 px-1">
+          <span id="pdpSlideBadge" class="bg-slate-900 text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">Slide 1</span>
+          <div id="pdpDotsBox" class="flex items-center gap-1.5"></div>
+          <span class="text-[10px] font-bold text-slate-400"><i class="fa-solid fa-arrows-left-right mr-1"></i>स्वाइप करें</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border shadow-2xs space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span id="pdpUnitBadge" class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-md" style="background:var(--cd-green-light);color:var(--cd-green)"></span>
+            <h2 id="pdpMainName" class="font-extrabold text-base sm:text-lg text-slate-900 mt-1"></h2>
+            <p id="pdpSubLine" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+          <div class="text-right shrink-0"><span class="text-[10px] text-slate-400 line-through block" id="pdpMrpTxt"></span><span class="text-xs font-bold text-slate-600 block" id="pdpRegTxt"></span></div>
+        </div>
+        <div onclick="openVipModal();closePdp()" class="cd-vip-ribbon rounded-2xl p-3 flex items-center justify-between cursor-pointer">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center text-sm shrink-0"><i class="fa-solid fa-crown"></i></div>
+            <div><div class="flex items-baseline gap-1.5"><span class="text-base sm:text-lg font-extrabold text-slate-950" id="pdpVipRate"></span><span class="text-xs font-extrabold text-amber-950">with VIP Membership</span></div><p class="text-[10px] font-bold text-amber-900/80" id="pdpVipNote"></p></div>
+          </div>
+          <span id="pdpSaveBadge" class="bg-slate-900 text-amber-300 text-[10px] font-extrabold px-2.5 py-1 rounded-xl shrink-0"></span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 pt-2 border-t text-center">
+          <div class="bg-[#f8faf9] p-2 rounded-xl border border-slate-100"><i class="fa-solid fa-flask text-sm" style="color:var(--cd-green)"></i><span class="block text-[9px] font-extrabold text-slate-700 mt-1">70+ Purity Tests</span></div>
+          <div class="bg-[#f8faf9] p-2 rounded-xl border border-slate-100"><i class="fa-solid fa-snowflake text-sky-600 text-sm"></i><span class="block text-[9px] font-extrabold text-slate-700 mt-1">4°C Cold Chain</span></div>
+          <div class="bg-[#f8faf9] p-2 rounded-xl border border-slate-100"><i class="fa-solid fa-shield-heart text-emerald-600 text-sm"></i><span class="block text-[9px] font-extrabold text-slate-700 mt-1">0% Preservative</span></div>
+          <div class="bg-[#f8faf9] p-2 rounded-xl border border-slate-100"><i class="fa-solid fa-truck-fast text-amber-600 text-sm"></i><span class="block text-[9px] font-extrabold text-slate-700 mt-1">36 Hr Farm-Home</span></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border shadow-2xs space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h4 class="font-extrabold text-xs sm:text-sm text-slate-900"><i class="fa-solid fa-scale-balanced mr-1" style="color:var(--cd-green)"></i>आज की धार बनाम आम बाज़ार का पैकेट</h4>
+          <span class="text-[9px] font-extrabold px-2 py-0.5 rounded" style="background:var(--cd-green-light);color:var(--cd-green)">Honest Comparison</span>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-200 text-[11px]">
+          <table class="w-full text-left border-collapse">
+            <thead><tr class="bg-slate-100 text-slate-700 font-extrabold"><th class="p-2.5">मानक</th><th class="p-2.5 text-center" style="background:var(--cd-green-light);color:var(--cd-green)">✓ आज की धार</th><th class="p-2.5 text-center text-slate-500">✕ आम पैकेट</th></tr></thead>
+            <tbody class="divide-y divide-slate-200 font-semibold">
+              <tr><td class="p-2.5">फार्म से घर पहुंचने का समय</td><td class="p-2.5 font-extrabold text-center" style="background:var(--cd-green-light);color:var(--cd-green)">✅ 24-36 घंटे में</td><td class="p-2.5 text-center text-rose-600">❌ 4-6 दिन पुराना</td></tr>
+              <tr><td class="p-2.5">पाउडर / यूरिया / प्रिज़र्वेटिव</td><td class="p-2.5 font-extrabold text-center" style="background:var(--cd-green-light);color:var(--cd-green)">✅ 0%</td><td class="p-2.5 text-center text-rose-600">❌ मिलावट संभव</td></tr>
+              <tr><td class="p-2.5">तापमान और डिलीवरी</td><td class="p-2.5 font-extrabold text-center" style="background:var(--cd-green-light);color:var(--cd-green)">✅ 4°C इंसुलेटेड बैग</td><td class="p-2.5 text-center text-rose-600">❌ खुला / गर्म</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border shadow-2xs space-y-3 text-xs">
+        <div><h4 class="font-extrabold text-slate-900 mb-1">प्रोडक्ट विवरण और सोर्सिंग (About Product):</h4><p id="pdpFullDesc" class="text-slate-600 leading-relaxed"></p></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t">
+          <div class="bg-[#f8faf9] p-3 rounded-xl border"><span class="text-[10px] font-bold text-slate-400 uppercase block">पोषण जानकारी (Per 100g/ml):</span><p id="pdpNutriTxt" class="font-extrabold text-slate-800 mt-0.5"></p></div>
+          <div class="bg-[#f8faf9] p-3 rounded-xl border"><span class="text-[10px] font-bold text-slate-400 uppercase block">शेल्फ लाइफ और स्टोरेज:</span><p id="pdpShelfTxt" class="font-extrabold text-slate-800 mt-0.5"></p></div>
+        </div>
+      </div>
+      <div id="pdpSimilarBox" class="bg-white rounded-2xl p-4 border shadow-2xs space-y-2 hidden">
+        <h4 class="font-extrabold text-xs text-slate-900">आपको ये भी पसंद आ सकता है</h4>
+        <div id="pdpSimilar" class="flex gap-2.5 overflow-x-auto no-sb"></div>
+      </div>
+    </div>
+    <div class="bg-white p-3.5 border-t flex items-center gap-2.5 shrink-0">
+      <button id="pdpSubActionBtn" class="flex-1 text-white font-extrabold py-3 rounded-xl text-xs shadow flex items-center justify-center gap-1.5" style="background:var(--cd-green)"><i class="fa-solid fa-calendar-check text-amber-300"></i><span>Subscribe (रोज़ाना सुबह)</span></button>
+      <button id="pdpBuyOnceBtn" class="w-40 bg-white font-extrabold py-2.5 rounded-xl text-xs border-2" style="color:var(--cd-green);border-color:var(--cd-green)">+ Buy Once</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SUBSCRIPTION ============ -->
+<div id="subModal" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl">
+    <div class="flex justify-between items-center border-b pb-2">
+      <div><span class="text-[10px] font-extrabold uppercase" style="color:var(--cd-green)">आज की धार Subscription</span><h3 class="font-extrabold text-sm">🔄 रोज़ाना सुबह प्लान</h3></div>
+      <button onclick="$('subModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="subProdPreview" class="flex items-center gap-3 bg-[#f8faf9] p-3 rounded-2xl border"></div>
+    <div class="flex justify-between items-center bg-slate-50 px-3.5 py-2.5 rounded-2xl text-xs font-bold border">
+      <span>प्रति डिलीवरी पैकेट (Quantity):</span>
+      <div class="flex items-center gap-3">
+        <button onclick="chgSubQty(-1)" class="w-7 h-7 rounded-lg bg-white border font-extrabold">-</button>
+        <span id="subQtyNum" class="font-extrabold text-sm">1</span>
+        <button onclick="chgSubQty(1)" class="w-7 h-7 rounded-lg text-white font-extrabold" style="background:var(--cd-green)">+</button>
+      </div>
+    </div>
+    <div>
+      <p class="text-[11px] font-extrabold text-slate-600 mb-1.5">डिलीवरी फ्रीक्वेंसी चुनें:</p>
+      <div class="grid grid-cols-3 gap-1.5 text-[11px]">
+        <button onclick="setPresetDays('रोज़ाना (Daily)',[0,1,2,3,4,5,6])" class="py-2 border rounded-xl font-extrabold">रोज़ाना (Daily)</button>
+        <button onclick="setPresetDays('1 दिन छोड़कर',[0,2,4,6])" class="py-2 border rounded-xl font-extrabold">Alternate Days</button>
+        <button onclick="setPresetDays('सोम - शुक्र',[0,1,2,3,4])" class="py-2 border rounded-xl font-extrabold">सोम - शुक्र</button>
+      </div>
+    </div>
+    <div id="wkDayGrid" class="grid grid-cols-7 gap-1 text-center"></div>
+    <button onclick="saveSubscription()" class="w-full text-white font-extrabold py-3 rounded-xl text-xs shadow-md" style="background:var(--cd-green)">सब्सक्रिप्शन शुरू / अपडेट करें</button>
+  </div>
+</div>
+
+<!-- ============ VIP ============ -->
+<div id="vipModal" class="fixed inset-0 bg-slate-950/70 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-3">
+      <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center"><i class="fa-solid fa-crown"></i></div><h3 class="font-extrabold text-sm">आज की धार VIP Club</h3></div>
+      <button onclick="$('vipModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="cd-vip-grad rounded-2xl p-4 text-white text-center space-y-1.5 border border-amber-500/40">
+      <span class="bg-amber-400 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">VIP Privilege</span>
+      <h2 class="text-lg font-extrabold cd-gold-txt">हर आर्डर पर बचाएं 25% से 40% तक!</h2>
+      <p class="text-xs text-slate-300">दूध, घी, पनीर और सब्ज़ियों पर सबसे कम दाम + फ्री डिलीवरी केवल VIP मेंबर्स के लिए।</p>
+      <p id="vipStatusLine" class="text-[11px] font-bold text-amber-300"></p>
+    </div>
+    <div id="vipPlansBox" class="space-y-2.5 text-xs"></div>
+    <p class="text-[10px] text-slate-400 text-center">प्लान की रकम आपके वॉलेट से कटेगी।</p>
+  </div>
+</div>
+
+<!-- ============ WALLET ============ -->
+<div id="walletModal" class="fixed inset-0 bg-slate-950/70 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-lg rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-3">
+      <div class="flex items-center gap-2"><div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:var(--cd-green-light);color:var(--cd-green)"><i class="fa-solid fa-wallet"></i></div><h3 class="font-extrabold text-sm">आज की धार Dual डिजिटल वॉलेट</h3></div>
+      <button onclick="$('walletModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="rounded-2xl p-4 text-white shadow-md space-y-3" style="background:var(--cd-green)">
+      <div class="flex justify-between items-center border-b border-white/15 pb-2.5">
+        <div><span class="text-[10px] text-amber-300 font-extrabold uppercase">कुल उपलब्ध बैलेंस</span><h2 class="text-3xl font-extrabold mt-0.5">₹<span id="walTotalShow">0</span></h2></div>
+        <div class="text-right bg-white/10 px-3 py-1.5 rounded-xl text-xs"><span class="text-emerald-100 block text-[10px]" id="walBillLbl">अगली डिलीवरी का बिल</span><b class="text-amber-300 text-sm">₹<span id="walTomorrowBill">0</span></b></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <div class="bg-white/10 p-2 rounded-xl"><span class="text-[10px] text-emerald-100 block">मेन रिचार्ज वॉलेट</span><b class="text-sm">₹<span id="walMainShow">0</span></b></div>
+        <div class="bg-amber-400/20 border border-amber-300/30 p-2 rounded-xl"><span class="text-[10px] text-amber-200 block">कैशबैक वॉलेट</span><b class="text-sm text-amber-300">₹<span id="walCbShow">0</span></b></div>
+      </div>
+    </div>
+    <div id="rechargeBox" class="space-y-2.5 text-xs">
+      <h4 class="font-extrabold text-slate-800"><i class="fa-solid fa-qrcode mr-1" style="color:var(--cd-green)"></i>UPI QR से रिचार्ज करें (GPay / PhonePe / Paytm)</h4>
+      <div id="rchPresets" class="grid grid-cols-4 gap-2"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+        <input id="rchAmt" type="number" value="500" placeholder="रकम ₹" class="border rounded-xl px-3 py-2 font-extrabold">
+        <input id="rchCode" type="text" placeholder="कूपन कोड" class="border rounded-xl px-3 py-2 font-bold uppercase" style="color:var(--cd-green)">
+        <button onclick="openUpiQr()" class="text-white font-extrabold py-2 rounded-xl shadow" style="background:var(--cd-green)">UPI QR दिखाएं</button>
+      </div>
+      <div id="pendingTopups" class="space-y-1"></div>
+    </div>
+    <div class="border-t pt-3 space-y-2">
+      <div class="flex justify-between items-center">
+        <h4 class="font-extrabold text-xs text-slate-800">वॉलेट पासबुक (Passbook)</h4>
+        <button onclick="$('walletModal').classList.add('hidden');openHelp('refund')" class="text-[10px] font-extrabold underline" style="color:var(--cd-green)"><i class="fa-solid fa-rotate-left mr-1"></i>रिफंड रिक्वेस्ट</button>
+      </div>
+      <div id="passbookList" class="space-y-1.5 max-h-44 overflow-y-auto text-xs"></div>
+    </div>
+  </div>
+</div>
+
+<div id="upiModal" class="fixed inset-0 bg-slate-950/70 z-[55] hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 text-center shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <span class="font-extrabold text-xs text-slate-700"><i class="fa-solid fa-shield-halved text-emerald-600 mr-1"></i>UPI पेमेंट</span>
+      <button onclick="$('upiModal').classList.add('hidden')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="bg-slate-50 p-3 rounded-2xl border inline-block mx-auto"><img id="upiQrImg" src="" alt="UPI QR" class="w-44 h-44 mx-auto rounded-xl object-contain"></div>
+    <div>
+      <p class="text-xs text-slate-500">किसी भी UPI ऐप से स्कैन करके पेमेंट करें</p>
+      <p class="text-2xl font-extrabold text-slate-900">₹<span id="upiAmtShow">500</span></p>
+      <span id="upiCbTag" class="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mt-1"></span>
+      <p class="text-[10px] text-slate-400 mt-1">UPI ID: <b id="upiIdTxt"></b></p>
+      <a id="upiPayLink" href="#" class="inline-block mt-2 text-xs font-extrabold underline" style="color:var(--cd-green)">📲 फ़ोन में UPI ऐप खोलें</a>
+    </div>
+    <div class="text-left space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs">
+      <label class="font-extrabold text-amber-900 block">पेमेंट के बाद UTR / Transaction ID डालें:</label>
+      <input id="upiUtr" placeholder="12 अंकों का UTR नंबर" maxlength="24" class="w-full border rounded-lg p-2 font-extrabold tracking-wider uppercase bg-white">
+      <p class="text-[10px] text-amber-800">UTR आपके UPI ऐप के पेमेंट डिटेल में मिलेगा। एडमिन वेरिफाई करते ही पैसा वॉलेट में जुड़ जाएगा।</p>
+    </div>
+    <button id="upiSubmitBtn" onclick="submitTopup()" class="w-full text-white font-extrabold py-3 rounded-xl text-xs shadow" style="background:var(--cd-green)">✅ पेमेंट हो गया — UTR जमा करें</button>
+  </div>
+</div>
+
+<!-- ============ ACCOUNT ============ -->
+<div id="accountModal" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 class="font-extrabold text-sm"><i class="fa-solid fa-id-card mr-1" style="color:var(--cd-green)"></i>मेरा अकाउंट</h3>
+      <button onclick="$('accountModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+      <div><label class="text-slate-400 font-bold block mb-1">नाम:</label><input id="profName" type="text" class="w-full border rounded-xl p-2 font-extrabold"></div>
+      <div><label class="text-slate-400 font-bold block mb-1">मोबाइल / WhatsApp:</label><input id="profPhone" inputmode="numeric" maxlength="10" type="text" class="w-full border rounded-xl p-2 font-extrabold"></div>
+      <div class="sm:col-span-2"><label class="text-slate-400 font-bold block mb-1">ईमेल:</label><input id="profEmail" disabled class="w-full border rounded-xl p-2 font-bold bg-slate-50 text-slate-500"></div>
+    </div>
+    <button onclick="saveProfile()" class="w-full text-white font-extrabold py-2 rounded-xl text-xs" style="background:var(--cd-green)">प्रोफ़ाइल सेव करें</button>
+
+    <div class="space-y-1.5 text-xs">
+      <h4 class="font-extrabold text-slate-800">ऑटो-ऑर्डर का पेमेंट तरीका:</h4>
+      <div id="payPrefBox" class="grid grid-cols-3 gap-1.5"></div>
+      <p class="text-[10px] text-slate-400">सब्सक्रिप्शन/ऑर्डर का बिल इसी तरीके से लगेगा। वॉलेट में बैलेंस कम हुआ तो ऑर्डर होल्ड हो जाएगा।</p>
+    </div>
+
+    <div id="refBox" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3 text-xs space-y-1.5">
+      <b class="text-amber-900"><i class="fa-solid fa-gift mr-1"></i>दोस्तों को बुलाएं, कैशबैक पाएं</b>
+      <p class="text-amber-800">आपका रेफ़रल कोड: <b id="refCodeTxt" class="text-sm tracking-widest"></b></p>
+      <button onclick="shareRef()" class="bg-emerald-600 text-white font-extrabold px-3 py-1.5 rounded-lg"><i class="fa-brands fa-whatsapp mr-1"></i>WhatsApp पर भेजें</button>
+    </div>
+
+    <div class="space-y-2">
+      <h4 class="font-extrabold text-xs text-slate-800">मेरे ऑर्डर और बिल रसीद:</h4>
+      <div id="myOrdersList" class="space-y-1.5 max-h-60 overflow-y-auto text-xs"></div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="$('accountModal').classList.add('hidden');openHelp()" class="bg-slate-100 text-slate-800 font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-headset mr-1"></i>मदद / Help</button>
+      <button onclick="installPWA()" class="bg-amber-400 text-slate-950 font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-mobile-screen mr-1"></i>Install App</button>
+      <button id="staffBtn" onclick="$('accountModal').classList.add('hidden');openAdmin()" class="hidden bg-slate-900 text-amber-300 font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-sliders mr-1"></i>एडमिन / राइडर पैनल</button>
+      <button onclick="logout()" class="bg-rose-50 text-rose-700 border border-rose-200 font-extrabold py-2.5 rounded-xl text-xs">लॉगआउट</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HELP ============ -->
+<div id="helpModal" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 class="font-extrabold text-sm"><i class="fa-solid fa-headset mr-1" style="color:var(--cd-green)"></i>मदद और सपोर्ट</h3>
+      <button onclick="$('helpModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="helpContact" class="grid grid-cols-3 gap-2 text-xs"></div>
+    <p id="helpHours" class="text-[11px] text-slate-500 text-center"></p>
+    <div><h4 class="font-extrabold text-xs text-slate-800 mb-1.5">अक्सर पूछे जाने वाले सवाल</h4><div id="faqBox" class="space-y-1.5 text-xs"></div></div>
+    <div id="refundForm" class="bg-rose-50/70 border border-rose-200 rounded-2xl p-3 space-y-2 text-xs">
+      <b class="text-rose-900"><i class="fa-solid fa-rotate-left mr-1 text-rose-600"></i>रिफंड रिक्वेस्ट (वेरिफिकेशन के बाद वॉलेट में)</b>
+      <select id="rfOrder" class="w-full border rounded-xl p-2 bg-white font-semibold"></select>
+      <input id="rfReason" placeholder="क्या दिक्कत हुई? (जैसे: पैकेट लीक था)" class="w-full border rounded-xl p-2 bg-white font-semibold">
+      <input id="rfAmt" type="number" placeholder="रिफंड रकम ₹ (खाली = पूरा बिल)" class="w-full border rounded-xl p-2 bg-white font-semibold">
+      <button onclick="submitRefund()" class="w-full bg-slate-900 text-white font-extrabold py-2 rounded-xl">रिक्वेस्ट भेजें</button>
+    </div>
+    <div id="ticketForm" class="bg-slate-50 border rounded-2xl p-3 space-y-2 text-xs">
+      <b class="text-slate-800"><i class="fa-solid fa-envelope-open-text mr-1" style="color:var(--cd-green)"></i>हमें संदेश भेजें</b>
+      <input id="tkSubject" placeholder="विषय" class="w-full border rounded-xl p-2 bg-white font-semibold">
+      <textarea id="tkMsg" rows="3" placeholder="अपनी बात लिखें..." class="w-full border rounded-xl p-2 bg-white font-semibold"></textarea>
+      <button onclick="submitTicket()" class="w-full text-white font-extrabold py-2 rounded-xl" style="background:var(--cd-green)">भेजें</button>
+    </div>
+    <div id="myTickets" class="space-y-1.5 text-xs"></div>
+    <div class="flex justify-center gap-3 text-[11px] font-bold" style="color:var(--cd-green)">
+      <button onclick="openPolicy('terms')">नियम-शर्तें</button><button onclick="openPolicy('privacy')">प्राइवेसी</button><button onclick="openPolicy('refund')">रिफंड पॉलिसी</button>
+    </div>
+  </div>
+</div>
+
+<div id="policyModal" class="fixed inset-0 bg-slate-950/60 z-[58] hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2"><h3 id="policyTitle" class="font-extrabold text-sm"></h3><button onclick="$('policyModal').classList.add('hidden')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button></div>
+    <p id="policyBody" class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap"></p>
+  </div>
+</div>
+
+<!-- ============ RECEIPT ============ -->
+<div id="receiptModal" class="fixed inset-0 bg-slate-950/60 z-[58] hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-3 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2"><h3 class="font-extrabold text-sm"><i class="fa-solid fa-receipt mr-1" style="color:var(--cd-green)"></i>बिल रसीद</h3><button onclick="$('receiptModal').classList.add('hidden')" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="printArea" class="border-2 border-dashed border-slate-300 rounded-2xl p-4 space-y-2.5 text-xs bg-slate-50"></div>
+    <button onclick="window.print()" class="w-full bg-slate-900 text-white font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-print mr-1"></i>प्रिंट / PDF सेव करें</button>
+  </div>
+</div>
+
+<!-- ============ BAG DRAWER ============ -->
+<div id="basketDrawer" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl max-h-[88vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2.5">
+      <div><span class="text-[9px] font-extrabold px-2 py-0.5 rounded" id="drwLockTag" style="background:var(--cd-green-light);color:var(--cd-green)">AUTO-LOCKS AT 11:59 PM</span><h3 class="font-extrabold text-sm mt-0.5" id="drwDayHeading"></h3></div>
+      <button onclick="$('basketDrawer').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="bg-[#f8faf9] p-3 rounded-2xl border flex items-center justify-between text-xs">
+      <div><b class="block text-slate-900"><i class="fa-solid fa-umbrella-beach text-amber-600 mr-1"></i>वेकेशन मोड</b><span class="text-[10px] text-slate-500">छुट्टियों पर जाने पर सुबह की सभी डिलीवरी रोकें</span></div>
+      <button onclick="toggleVac()" id="vacToggleBtn" class="px-3 py-1.5 rounded-xl font-extrabold text-xs">बंद है</button>
+    </div>
+    <div class="bg-slate-50 p-2.5 rounded-2xl border text-xs space-y-1.5">
+      <label class="font-extrabold text-slate-700 block"><i class="fa-solid fa-bell-slash mr-1" style="color:var(--cd-green)"></i>सुबह की साइलेंट डिलीवरी निर्देश:</label>
+      <select id="delivPrefSel" onchange="savePref(this.value)" class="w-full border rounded-xl p-2 font-bold bg-white text-slate-700">
+        <option value="🔕 घंटी न बजाएं - दरवाज़े के बैग में रखें">🔕 घंटी न बजाएं - दरवाज़े के बैग में रखें</option>
+        <option value="🔔 एक बार घंटी बजाएं और दरवाज़े पर रखें">🔔 एक बार घंटी बजाएं और दरवाज़े पर रखें</option>
+        <option value="👮 सोसायटी गार्ड के पास छोड़ें">👮 सोसायटी गार्ड के पास छोड़ें</option>
+      </select>
+    </div>
+    <div class="space-y-2"><h4 class="font-extrabold text-xs text-slate-800">मेरी सब्सक्रिप्शन (Active Subscriptions):</h4><div id="drwSubsList" class="space-y-2"></div></div>
+    <div class="space-y-2 pt-2 border-t"><h4 class="font-extrabold text-xs text-slate-800">चुने गए दिन की डिलीवरी टोकरी:</h4><div id="drwItemsList" class="space-y-2"></div></div>
+    <div class="bg-[#f8faf9] p-3.5 rounded-2xl border text-xs space-y-1.5">
+      <div class="flex justify-between text-slate-500"><span>कुल MRP मूल्य</span><span id="drwMrp">₹0</span></div>
+      <div class="flex justify-between text-amber-700 font-bold"><span>👑 VIP + आज की धार बचत</span><span id="drwSave">- ₹0</span></div>
+      <div class="flex justify-between text-slate-500"><span>डिलीवरी शुल्क</span><span id="drwFee">FREE</span></div>
+      <div class="flex justify-between font-extrabold text-sm border-t pt-1.5 text-slate-900"><span id="drwNetLbl">कुल बिल</span><span id="drwNet">₹0</span></div>
+    </div>
+    <div id="drwPayBox" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3 text-xs space-y-2"></div>
+  </div>
+</div>
+
+<div id="locModal" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
+    <h3 class="font-extrabold text-sm">📍 अपनी सोसायटी / अपार्टमेंट चुनें</h3>
+    <select id="locSocSel" class="w-full border rounded-xl p-2.5 text-xs font-bold"></select>
+    <input id="locFlatInp" type="text" placeholder="टावर और फ्लैट नंबर (जैसे: B-402)" class="w-full border rounded-xl p-2.5 text-xs font-bold">
+    <p class="text-[10px] text-slate-400">आपकी सोसायटी लिस्ट में नहीं है? मदद सेक्शन में हमें बताएं।</p>
+    <div class="flex gap-2">
+      <button onclick="$('locModal').classList.add('hidden')" class="flex-1 bg-slate-100 py-2 rounded-xl text-xs font-bold">रद्द करें</button>
+      <button onclick="saveLocation()" class="flex-1 text-white py-2 rounded-xl text-xs font-extrabold" style="background:var(--cd-green)">सेव करें</button>
+    </div>
+  </div>
+</div>
+
+<div id="floatStrip" onclick="openBasketDrawer()" class="fixed bottom-14 inset-x-0 max-w-4xl mx-auto px-3.5 z-30 cursor-pointer hidden">
+  <div class="text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-emerald-400/30 flex items-center justify-between" style="background:var(--cd-green)">
+    <div class="flex items-center gap-2.5">
+      <span id="fltQty" class="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-extrabold flex items-center justify-center text-xs shadow">0</span>
+      <div>
+        <div class="flex items-center gap-1.5"><p class="text-xs font-extrabold" id="fltDayTitle"></p><span id="fltVipSaved" class="bg-amber-400/20 text-amber-300 text-[9px] font-extrabold px-1.5 py-0.5 rounded"></span></div>
+        <p class="text-[10px] text-emerald-100" id="fltSub">कटऑफ़ तक आइटम बदलें • ऑटो-चेकआउट</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 font-extrabold text-xs"><span class="text-amber-300 text-sm">₹<span id="fltBill">0</span></span><span class="bg-white px-3 py-1.5 rounded-xl shadow-xs" style="color:var(--cd-green)">बैग देखें →</span></div>
+  </div>
+</div>
+
+<nav class="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40">
+  <div class="max-w-4xl mx-auto grid grid-cols-5 py-1.5 text-center text-[10px]">
+    <button onclick="selCat='all';renderAll();window.scrollTo({top:0,behavior:'smooth'})" class="flex flex-col items-center py-1 font-extrabold" style="color:var(--cd-green)"><i class="fa-solid fa-house text-sm"></i><span class="mt-0.5">Home</span></button>
+    <button onclick="$('cdCatCircles').scrollIntoView({behavior:'smooth'})" class="flex flex-col items-center py-1 text-slate-500 font-semibold"><i class="fa-solid fa-table-cells-large text-sm"></i><span class="mt-0.5">Categories</span></button>
+    <button onclick="openVipModal()" class="flex flex-col items-center py-1 text-amber-600 font-extrabold"><i class="fa-solid fa-crown text-sm"></i><span class="mt-0.5">VIP Club</span></button>
+    <button onclick="openBasketDrawer()" class="flex flex-col items-center py-1 text-slate-500 font-semibold"><i class="fa-solid fa-calendar-check text-sm"></i><span class="mt-0.5">7 AM Bag</span></button>
+    <button onclick="openAccount()" class="flex flex-col items-center py-1 text-slate-500 font-semibold"><i class="fa-solid fa-user text-sm"></i><span class="mt-0.5">Account</span></button>
+  </div>
+</nav>
+
+<!-- ============ ADMIN / RIDER PANEL ============ -->
+<div id="adminModal" class="fixed inset-0 bg-slate-950 text-slate-100 z-50 hidden overflow-y-auto">
+  <div class="max-w-6xl mx-auto p-4 space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+      <div><h2 class="font-extrabold text-base text-amber-400" id="admTitle">🔐 मास्टर एडमिन कमांड सेंटर</h2><p class="text-[11px] text-slate-400" id="admSub"></p></div>
+      <button onclick="$('adminModal').classList.add('hidden');refreshAll()" class="bg-rose-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl">बाहर निकलें</button>
+    </div>
+    <div id="admTabs" class="flex gap-2 overflow-x-auto no-sb bg-slate-900 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold"></div>
+    <div id="admBody" class="space-y-4"></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>

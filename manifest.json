@@ -1,0 +1,11 @@
+{
+  "name": "आज की धार - 5-7 AM Milk & Grocery",
+  "short_name": "आज की धार",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d5c3a",
+  "theme_color": "#0d5c3a",
+  "icons": [
+    { "src": "https://cdn-icons-png.flaticon.com/512/869/869664.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

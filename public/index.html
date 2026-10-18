@@ -83,8 +83,8 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
 
 <div id="vacBar" class="hidden bg-rose-600 text-white text-xs px-4 py-2">
   <div class="max-w-4xl mx-auto flex items-center justify-between">
-    <span><i class="fa-solid fa-umbrella-beach mr-1"></i><b>वेकेशन मोड चालू है:</b> आपकी सुबह की सभी डिलीवरी रुकी हुई हैं।</span>
-    <button onclick="toggleVac()" class="bg-white text-rose-700 font-extrabold px-2.5 py-0.5 rounded">चालू करें</button>
+    <span><i class="fa-solid fa-umbrella-beach mr-1"></i><b id="vacBarTitle">वेकेशन मोड चालू है:</b> <span id="vacBarTxt">आपकी सुबह की सभी डिलीवरी रुकी हुई हैं।</span></span>
+    <button onclick="endVacation()" class="bg-white text-rose-700 font-extrabold px-2.5 py-0.5 rounded shrink-0 ml-2">डिलीवरी वापस चालू करें</button>
   </div>
 </div>
 <div id="lowBalBar" class="hidden bg-amber-100 border-b border-amber-300 text-amber-900 text-xs px-4 py-2">
@@ -108,7 +108,7 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
   </div>
 
   <div id="heroBannerSlider" class="flex gap-3 overflow-x-auto no-sb snap-x"></div>
-  <div id="couponStripBox" class="flex items-center gap-2 overflow-x-auto no-sb py-0.5"></div>
+  <div class="flex items-center gap-2"><div id="couponStripBox" class="flex items-center gap-2 overflow-x-auto no-sb py-0.5 flex-1"></div><button onclick="openOffers()" class="shrink-0 text-[11px] font-extrabold px-2.5 py-1.5 rounded-xl border-2" style="color:var(--cd-green);border-color:var(--cd-green)"><i class="fa-solid fa-percent mr-1"></i>सभी ऑफ़र</button></div>
 
   <div class="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-2xs">
     <div class="flex items-center justify-between mb-2.5">
@@ -270,6 +270,12 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
 </div>
 
 <!-- ============ VIP ============ -->
+<div id="offersModal" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3 shadow-2xl max-h-[88vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2.5"><h3 class="font-extrabold text-sm"><i class="fa-solid fa-percent mr-1" style="color:var(--cd-green)"></i>ऑफ़र ज़ोन</h3><button onclick="$('offersModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button></div>
+    <div id="offersList" class="space-y-2.5"></div>
+  </div>
+</div>
 <div id="vipModal" class="fixed inset-0 bg-slate-950/70 z-50 hidden flex items-center justify-center p-4">
   <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center border-b pb-3">
@@ -370,6 +376,8 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
     <div id="refBox" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3 text-xs space-y-1.5">
       <b class="text-amber-900"><i class="fa-solid fa-gift mr-1"></i>दोस्तों को बुलाएं, कैशबैक पाएं</b>
       <p class="text-amber-800">आपका रेफ़रल कोड: <b id="refCodeTxt" class="text-sm tracking-widest"></b></p>
+      <div class="grid grid-cols-3 gap-1.5 text-center"><div class="bg-white rounded-lg p-1.5 border border-amber-200"><b id="refPend" class="block text-base text-orange-600">0</b><span class="text-[9px] text-slate-500">इंतज़ार में</span></div><div class="bg-white rounded-lg p-1.5 border border-amber-200"><b id="refOk" class="block text-base text-emerald-700">0</b><span class="text-[9px] text-slate-500">सफल</span></div><div class="bg-white rounded-lg p-1.5 border border-amber-200"><b id="refEarn" class="block text-base text-slate-900">₹0</b><span class="text-[9px] text-slate-500">कमाई</span></div></div>
+      <p class="text-[10px] text-amber-800">जब दोस्त पहली बार वॉलेट रिचार्ज करता है और एडमिन अप्रूव करता है, तब आपको बोनस मिलता है।</p>
       <button onclick="shareRef()" class="bg-emerald-600 text-white font-extrabold px-3 py-1.5 rounded-lg"><i class="fa-brands fa-whatsapp mr-1"></i>WhatsApp पर भेजें</button>
     </div>
 
@@ -440,9 +448,20 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
       <div><span class="text-[9px] font-extrabold px-2 py-0.5 rounded" id="drwLockTag" style="background:var(--cd-green-light);color:var(--cd-green)">AUTO-LOCKS AT 11:59 PM</span><h3 class="font-extrabold text-sm mt-0.5" id="drwDayHeading"></h3></div>
       <button onclick="$('basketDrawer').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <div class="bg-[#f8faf9] p-3 rounded-2xl border flex items-center justify-between text-xs">
-      <div><b class="block text-slate-900"><i class="fa-solid fa-umbrella-beach text-amber-600 mr-1"></i>वेकेशन मोड</b><span class="text-[10px] text-slate-500">छुट्टियों पर जाने पर सुबह की सभी डिलीवरी रोकें</span></div>
-      <button onclick="toggleVac()" id="vacToggleBtn" class="px-3 py-1.5 rounded-xl font-extrabold text-xs">बंद है</button>
+    <div class="bg-[#f8faf9] p-3 rounded-2xl border text-xs space-y-2.5">
+      <div class="flex items-center justify-between">
+        <div><b class="block text-slate-900"><i class="fa-solid fa-umbrella-beach text-amber-600 mr-1"></i>वेकेशन मोड</b><span class="text-[10px] text-slate-500">छुट्टियों में डिलीवरी रुकती है, वॉलेट से पैसा नहीं कटता</span></div>
+        <button onclick="toggleVac()" id="vacToggleBtn" class="px-3 py-1.5 rounded-xl font-extrabold text-xs">बंद है</button>
+      </div>
+      <div class="border-t pt-2.5 space-y-1.5">
+        <b class="text-slate-700 block">या तारीख़ चुनें (अपने-आप चालू और बंद):</b>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-[10px] text-slate-500">से<input type="date" id="vacFrom" class="w-full border rounded-xl p-2 font-bold bg-white text-slate-700 text-xs"></label>
+          <label class="text-[10px] text-slate-500">तक (इस दिन भी डिलीवरी बंद)<input type="date" id="vacTo" class="w-full border rounded-xl p-2 font-bold bg-white text-slate-700 text-xs"></label>
+        </div>
+        <div class="flex gap-2"><button onclick="saveVacRange()" class="flex-1 text-white font-extrabold py-2 rounded-xl" style="background:var(--cd-green)">छुट्टी सेट करें</button><button id="vacClearBtn" onclick="clearVacRange()" class="hidden px-3 font-extrabold py-2 rounded-xl bg-slate-200 text-slate-700">हटाएं</button></div>
+        <p id="vacRangeInfo" class="text-[10px] text-rose-600 font-bold"></p>
+      </div>
     </div>
     <div class="bg-slate-50 p-2.5 rounded-2xl border text-xs space-y-1.5">
       <label class="font-extrabold text-slate-700 block"><i class="fa-solid fa-bell-slash mr-1" style="color:var(--cd-green)"></i>सुबह की साइलेंट डिलीवरी निर्देश:</label>
@@ -451,6 +470,8 @@ details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-
         <option value="🔔 एक बार घंटी बजाएं और दरवाज़े पर रखें">🔔 एक बार घंटी बजाएं और दरवाज़े पर रखें</option>
         <option value="👮 सोसायटी गार्ड के पास छोड़ें">👮 सोसायटी गार्ड के पास छोड़ें</option>
       </select>
+      <label class="flex items-center justify-between bg-white border rounded-xl p-2 font-bold text-slate-700"><span><i class="fa-solid fa-phone-volume mr-1" style="color:var(--cd-green)"></i>पहुँचने से पहले कॉल करें</span><input type="checkbox" id="callBeforeChk" onchange="saveCallBefore(this.checked)" class="w-5 h-5 accent-emerald-700"></label>
+      <input id="doorNote" maxlength="160" onchange="saveDoorNote(this.value)" placeholder="दरवाज़ा पहचानने का निर्देश (जैसे: नीले दरवाज़े के पास बैग टांगें)" class="w-full border rounded-xl p-2 bg-white text-slate-700 text-[11px]">
     </div>
     <div class="space-y-2"><h4 class="font-extrabold text-xs text-slate-800">मेरी सब्सक्रिप्शन (Active Subscriptions):</h4><div id="drwSubsList" class="space-y-2"></div></div>
     <div class="space-y-2 pt-2 border-t"><h4 class="font-extrabold text-xs text-slate-800">चुने गए दिन की डिलीवरी टोकरी:</h4><div id="drwItemsList" class="space-y-2"></div></div>

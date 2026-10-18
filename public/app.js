@@ -80,7 +80,9 @@ function renderAll() {
   $('hdrWal').textContent = balance();
   $('vipHdrStatus').textContent = isVipNow() ? 'ACTIVE' : 'JOIN VIP';
   $('vipSubText').textContent = isVipNow() ? 'VIP मेंबरशिप चालू है — आपको हर प्रोडक्ट पर नीचे दिया गया गोल्डन VIP रेट मिल रहा है!' : 'VIP मेंबरशिप बंद है — अभी चालू करें और हर लीटर दूध व घी पर 25-40% तक बचाएं!';
-  $('vacBar').classList.toggle('hidden', !(u && u.vacation));
+  const vacOn = u && (u.vacation || (u.vac_from && u.vac_to && u.vac_to >= C.today));
+  $('vacBar').classList.toggle('hidden', !vacOn);
+  if (vacOn) { $('vacBarTitle').textContent = u.vacation ? 'वेकेशन मोड चालू है:' : 'छुट्टी सेट है:'; $('vacBarTxt').textContent = u.vacation ? 'आपकी सुबह की सभी डिलीवरी रुकी हुई हैं।' : `${fmtDate(u.vac_from)} से ${fmtDate(u.vac_to)} तक डिलीवरी बंद रहेगी।`; }
   const staff = u && ['admin', 'rider'].includes(u.role);
   $('adminBtn').classList.toggle('hidden', !staff);
   $('staffBtn').classList.toggle('hidden', !staff);
@@ -298,6 +300,16 @@ async function toggleVac() {
   if (needLogin()) return;
   await run(async () => { const r = await api('/me', 'PUT', { vacation: !ME.user.vacation }); ME.user = r.user; renderAll(); await loadBag(); toast(ME.user.vacation ? '🏖️ वेकेशन मोड चालू: डिलीवरी पॉज़' : '✅ वेकेशन मोड बंद: डिलीवरी चालू'); });
 }
+async function saveVacRange() {
+  if (needLogin()) return;
+  const f = $('vacFrom').value, t = $('vacTo').value;
+  if (!f || !t) return toast('"से" और "तक" दोनों तारीख़ें चुनें', true);
+  await run(async () => { const r = await api('/me', 'PUT', { vac_from: f, vac_to: t }); ME.user = r.user; renderAll(); await loadBag(); toast(`🏖️ छुट्टी सेट: ${fmtDate(f)} से ${fmtDate(t)} तक`); });
+}
+async function clearVacRange() { await run(async () => { const r = await api('/me', 'PUT', { vac_from: '', vac_to: '' }); ME.user = r.user; $('vacFrom').value = ''; $('vacTo').value = ''; renderAll(); await loadBag(); toast('✅ छुट्टी हटा दी गई'); }); }
+async function endVacation() { await run(async () => { const r = await api('/me', 'PUT', { vacation: false, vac_from: '', vac_to: '' }); ME.user = r.user; renderAll(); await loadBag(); toast('✅ डिलीवरी वापस चालू'); }); }
+async function saveCallBefore(v) { await run(async () => { const r = await api('/me', 'PUT', { call_before: !!v }); ME.user = r.user; toast(v ? '📞 राइडर पहुँचने से पहले कॉल करेगा' : 'कॉल बंद'); }); }
+async function saveDoorNote(v) { await run(async () => { const r = await api('/me', 'PUT', { door_note: v }); ME.user = r.user; toast('📝 निर्देश सेव हो गया'); }); }
 async function savePref(v) { await run(async () => { const r = await api('/me', 'PUT', { deliv_pref: v }); ME.user = r.user; toast('🔔 डिलीवरी निर्देश अपडेट हो गया'); }); }
 
 function renderFloatingBasket() {
@@ -318,7 +330,13 @@ function renderFloatingBasket() {
   const vac = ME && ME.user.vacation;
   $('vacToggleBtn').className = `px-3 py-1.5 rounded-xl font-extrabold text-xs ${vac ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700'}`;
   $('vacToggleBtn').textContent = vac ? 'चालू है 🏖️' : 'बंद है';
-  if (ME) $('delivPrefSel').value = ME.user.deliv_pref;
+  if (ME) {
+    const u = ME.user; $('delivPrefSel').value = u.deliv_pref; $('callBeforeChk').checked = !!u.call_before; if (document.activeElement !== $('doorNote')) $('doorNote').value = u.door_note || '';
+    $('vacFrom').min = C.today; $('vacTo').min = C.today;
+    if (u.vac_from && u.vac_to) { $('vacFrom').value = u.vac_from; $('vacTo').value = u.vac_to; }
+    $('vacClearBtn').classList.toggle('hidden', !(u.vac_from && u.vac_to));
+    $('vacRangeInfo').textContent = u.vac_from && u.vac_to ? `सेट है: ${fmtDate(u.vac_from)} से ${fmtDate(u.vac_to)} तक` : '';
+  }
   $('drwSubsList').innerHTML = ME && ME.subs.length ? ME.subs.map(s => {
     const p = PM()[s.product_id]; if (!p) return '';
     return `<div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border text-xs"><div><b>${E(p.name)}</b><span class="block text-[10px] text-slate-500">${s.qty} पैक • ${E(s.pattern)} [${s.days.map(d => wkDays[d]).join(', ')}]</span></div>
@@ -335,6 +353,13 @@ function renderFloatingBasket() {
     pb.classList.remove('hidden');
     pb.innerHTML = `<b class="text-rose-800">वॉलेट में बैलेंस कम है — ऑर्डर होल्ड पर है।</b><button onclick="$('basketDrawer').classList.add('hidden');openWalletModal()" class="w-full text-white font-extrabold py-2 rounded-xl" style="background:var(--cd-green)">अभी रिचार्ज करें</button>`;
   } else if (o) { pb.classList.remove('hidden'); pb.innerHTML = `पेमेंट: <b>${PAYLBL[o.pay_method]}</b> • ${PAYST[o.pay_status] || ''} <button onclick="showReceipt(${o.id})" class="ml-2 underline font-extrabold" style="color:var(--cd-green)">बिल देखें</button>`; }
+  else if (items.length && !vac) {
+    const fd = dInfo(calIdx).date, cd = addDaysC(fd, -1), MN = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+    const fmt = ds => { const d = new Date(ds + 'T00:00:00Z'); return `${d.getUTCDate()} ${MN[d.getUTCMonth()]} (${wkDays[(d.getUTCDay() + 6) % 7]}वार)`; };
+    const ct = (C.delivery || {}).cutoff || '23:59', how = ME && ME.user.pay_pref === 'wallet' ? 'वॉलेट से अपने-आप कटेगा' : ME && ME.user.pay_pref === 'cod' ? 'डिलीवरी पर कैश (COD)' : 'UPI से पेमेंट';
+    pb.classList.remove('hidden');
+    pb.innerHTML = `<div class="space-y-1"><div>🚚 <b>डिलीवरी:</b> ${fmt(fd)} सुबह 5–7 बजे</div><div>🔒 <b>ऑर्डर पक्का होगा:</b> ${fmt(cd)} रात ${ct} बजे</div><div>💳 <b>बिल:</b> ${how}${ME && ME.user.pay_pref === 'wallet' ? ' (उसी समय)' : ''}</div><div class="text-[10px] text-slate-500">तब तक आइटम बदल या हटा सकते हैं। वॉलेट में बैलेंस कम हुआ तो ऑर्डर होल्ड पर जाएगा।</div></div>`;
+  }
   else pb.classList.add('hidden');
 }
 function renderLowBal() {
@@ -363,6 +388,7 @@ async function openAccount() {
   $('payPrefBox').innerHTML = modes.filter(m => m[3]).map(m => `<button onclick="setPayPref('${m[0]}')" class="py-2 rounded-xl border-2 font-extrabold ${u.pay_pref === m[0] ? 'text-white border-transparent' : 'bg-white text-slate-600'}" style="${u.pay_pref === m[0] ? 'background:var(--cd-green)' : ''}"><i class="fa-solid ${m[2]} mr-1"></i>${m[1]}</button>`).join('');
   const rf = C.referral || {};
   $('refBox').classList.toggle('hidden', !rf.enabled); $('refCodeTxt').textContent = u.ref_code || '';
+  loadStats().then(paintRefStats);
   $('myOrdersList').innerHTML = ME.orders.length ? ME.orders.map(o => {
     const st = STATUS[o.status] || [o.status, 'bg-slate-100'];
     return `<div class="border rounded-xl p-2.5 flex items-center justify-between gap-2"><div class="min-w-0"><b class="block truncate">${E(o.order_no)}</b><span class="text-[10px] text-slate-500">${fmtDate(o.delivery_date)} • ₹${o.total} • ${PAYLBL[o.pay_method]} (${PAYST[o.pay_status] || ''})</span><span class="ml-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded ${st[1]}">${st[0]}</span></div>
@@ -374,11 +400,24 @@ async function saveProfile() {
   await run(async () => { const r = await api('/me', 'PUT', { name: $('profName').value, phone: $('profPhone').value }); ME.user = r.user; renderAll(); toast('👤 प्रोफ़ाइल अपडेट हो गई!'); });
 }
 async function setPayPref(m) { await run(async () => { const r = await api('/me', 'PUT', { pay_pref: m }); ME.user = r.user; openAccount(); toast('पेमेंट तरीका बदल गया'); }); }
+let ST = null;
+async function loadStats() { try { ST = await api('/me/stats'); } catch { ST = null; } return ST; }
+function paintRefStats() { if (!ST) return; $('refPend').textContent = ST.referrals.pending; $('refOk').textContent = ST.referrals.successful; $('refEarn').textContent = '₹' + ST.referrals.earned; }
+function openOffers() {
+  const cs = C.coupons || [];
+  $('offersList').innerHTML = (cs.length ? cs.map(c => `<div class="rounded-2xl p-3.5 border" style="background:var(--cd-green-light)"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-600 text-white">HOT DEAL</span>
+    <h4 class="font-extrabold text-sm mt-1.5">${E(c.descr)}</h4>
+    <p class="text-[11px] text-slate-600 mt-0.5">₹${c.min_amount} या ज़्यादा का रिचार्ज करने पर ₹${c.bonus} कैशबैक</p>
+    <div class="flex items-center justify-between mt-2"><span class="text-[10px] text-slate-500">${c.valid_till ? '*ऑफ़र ' + fmtDate(c.valid_till) + ' तक मान्य' : '*सीमित समय के लिए'}</span><button onclick="$('offersModal').classList.add('hidden');openWalletModal('${E(c.code)}',${+c.min_amount})" class="text-xs font-extrabold text-white px-3 py-1.5 rounded-lg" style="background:var(--cd-green)">कोड ${E(c.code)} लगाएं</button></div></div>`).join('') : '<p class="text-slate-400 text-xs text-center py-6">अभी कोई ऑफ़र नहीं है। जल्दी वापस देखें!</p>');
+  $('offersModal').classList.remove('hidden');
+}
 function shareRef() { const url = location.origin + '/?ref=' + ME.user.ref_code; window.open('https://wa.me/?text=' + encodeURIComponent(`🥛 ${(C.shop || {}).name || 'आज की धार'} से सुबह ताज़ा दूध मंगाइए! मेरा रेफ़रल कोड ${ME.user.ref_code} इस्तेमाल करें: ${url}`), '_blank'); }
 
 // ---------------------------------------------------------------- VIP
 function openVipModal() {
-  $('vipStatusLine').textContent = isVipNow() ? `✅ आपका VIP चालू है${ME.user.vip_until ? ' — ' + fmtDate(ME.user.vip_until) + ' तक' : ''}` : '';
+  const vipTxt = () => (isVipNow() ? `✅ आपका VIP चालू है${ME.user.vip_until ? ' — ' + fmtDate(ME.user.vip_until) + ' तक' : ''}` : '') + (ST && ST.saved > 0 ? `${isVipNow() ? ' • ' : ''}💰 अब तक कुल बचत ₹${ST.saved}` : '');
+  $('vipStatusLine').textContent = vipTxt();
+  if (ME) loadStats().then(() => { $('vipStatusLine').textContent = vipTxt(); });
   $('vipPlansBox').innerHTML = (C.vip_plans || []).map((p, i) => `<div onclick="buyVip(${p.days})" class="p-3 rounded-2xl border-2 flex justify-between items-center cursor-pointer ${i === 1 ? 'border-amber-400 bg-amber-50/60' : 'border-slate-200 bg-white'}"><div><b>${E(p.label)} VIP पास</b><span class="block text-[10px] text-slate-500">${p.days} दिन • फ्री डिलीवरी + सबसे कम रेट</span></div><span class="font-extrabold text-sm" style="color:var(--cd-green)">₹${p.price}</span></div>`).join('');
   $('vipModal').classList.remove('hidden');
 }

@@ -88,8 +88,11 @@ const isVip = u => !!u.is_vip && (!u.vip_until || u.vip_until >= istParts().date
 const pubUser = u => ({
   id: u.id, email: u.email, name: u.name, phone: u.phone, role: u.role, society_id: u.society_id, flat: u.flat,
   deliv_pref: u.deliv_pref, pay_pref: u.pay_pref, is_vip: isVip(u), vip_until: u.vip_until,
-  wallet_main: num(u.wallet_main), wallet_cb: num(u.wallet_cb), vacation: u.vacation, ref_code: u.ref_code
+  wallet_main: num(u.wallet_main), wallet_cb: num(u.wallet_cb), vacation: u.vacation, ref_code: u.ref_code,
+  vac_from: u.vac_from || null, vac_to: u.vac_to || null, call_before: !!u.call_before, door_note: u.door_note || ''
 });
+// इस डिलीवरी तारीख़ पर छुट्टी है? (हमेशा के लिए पॉज़ या तारीख़ों की रेंज)
+const onVacation = (u, D) => !!u.vacation || !!(u.vac_from && u.vac_to && D >= u.vac_from && D <= u.vac_to);
 const newRefCode = () => crypto.randomBytes(4).toString('hex').toUpperCase();
 
 async function auth(req, res, next) {
@@ -122,14 +125,14 @@ app.get('/api/config', wrap(async (req, res) => {
     dbq(sb.from('categories').select('id,name,img').eq('active', true).order('sort')),
     dbq(sb.from('products').select('*').eq('active', true).order('sort').order('id')),
     dbq(sb.from('banners').select('*').eq('active', true).order('sort')),
-    dbq(sb.from('coupons').select('code,min_amount,bonus,descr').eq('active', true))
+    dbq(sb.from('coupons').select('code,min_amount,bonus,descr,valid_till').eq('active', true))
   ]);
   const pay = cfg.payments || {};
   const ci = await cutoffInfo();
   res.json({
     shop: cfg.shop, delivery: cfg.delivery, vip_plans: cfg.vip_plans, faq: cfg.faq, policies: cfg.policies, theme: cfg.theme, referral: cfg.referral,
     payments: { wallet: pay.wallet !== false, upi: !!pay.upi, cod: !!pay.cod, upi_id: pay.upi_id, merchant_name: pay.merchant_name, qr_url: pay.qr_url },
-    societies, categories, banners, coupons, next_date: ci.nextDate, today: ci.now.date,
+    societies, categories, banners, coupons: coupons.filter(c => !c.valid_till || c.valid_till >= ci.now.date), next_date: ci.nextDate, today: ci.now.date,
     products: products.map(p => ({ id: p.id, name: p.name, cat: p.cat, unit: p.unit, vipPrice: num(p.vip_price), price: num(p.price), mrp: num(p.mrp), stock: p.in_stock && p.stock_qty > 0, tag: p.tag, subInfo: p.sub_info, desc: p.descr, nutri: p.nutri, shelf: p.shelf, images: p.images || [] }))
   });
 }));
@@ -222,6 +225,20 @@ app.get('/api/me', auth, wrap(async (req, res) => {
   res.json({ user: pubUser(u), subs, cart, txns, orders, topups, refunds, tickets });
 }));
 
+// रेफ़रल की प्रोग्रेस और कुल बचत
+app.get('/api/me/stats', auth, wrap(async (req, res) => {
+  const [refs, bonus, orders] = await Promise.all([
+    dbq(sb.from('users').select('id').eq('referred_by', req.user.id)),
+    dbq(sb.from('wallet_txns').select('amount').eq('user_id', req.user.id).eq('title', 'रेफ़रल बोनस')),
+    dbq(sb.from('orders').select('mrp_total,subtotal').eq('user_id', req.user.id).neq('status', 'cancelled'))
+  ]);
+  const earned = money(bonus.reduce((a, t) => a + num(t.amount), 0));
+  res.json({
+    referrals: { total: refs.length, successful: Math.min(bonus.length, refs.length), pending: Math.max(0, refs.length - bonus.length), earned },
+    saved: money(orders.reduce((a, o) => a + Math.max(0, num(o.mrp_total) - num(o.subtotal)), 0))
+  });
+}));
+
 app.put('/api/me', auth, wrap(async (req, res) => {
   const b = req.body, patch = {};
   if (b.name !== undefined) patch.name = String(b.name).trim().slice(0, 60);
@@ -230,6 +247,17 @@ app.put('/api/me', auth, wrap(async (req, res) => {
   if (b.flat !== undefined) patch.flat = String(b.flat).trim().slice(0, 60);
   if (b.deliv_pref !== undefined) patch.deliv_pref = String(b.deliv_pref).slice(0, 120);
   if (b.vacation !== undefined) patch.vacation = !!b.vacation;
+  if (b.vac_from !== undefined || b.vac_to !== undefined) {
+    if (!b.vac_from && !b.vac_to) { patch.vac_from = null; patch.vac_to = null; }
+    else {
+      if (!validDate(b.vac_from) || !validDate(b.vac_to)) bad('छुट्टी की दोनों तारीख़ें सही चुनें');
+      if (b.vac_to < b.vac_from) bad('"तक" की तारीख़ "से" से पहले नहीं हो सकती');
+      if (b.vac_to > addDays(istParts().date, 180)) bad('छुट्टी 6 महीने से ज़्यादा आगे की नहीं रख सकते');
+      patch.vac_from = b.vac_from; patch.vac_to = b.vac_to;
+    }
+  }
+  if (b.call_before !== undefined) patch.call_before = !!b.call_before;
+  if (b.door_note !== undefined) patch.door_note = String(b.door_note).trim().slice(0, 160);
   if (b.pay_pref !== undefined) {
     const pay = (await getSettings()).payments || {};
     if (!['wallet', 'upi', 'cod'].includes(b.pay_pref) || pay[b.pay_pref] === false || (b.pay_pref !== 'wallet' && !pay[b.pay_pref])) bad('यह पेमेंट तरीका अभी बंद है');
@@ -258,7 +286,7 @@ app.get('/api/bag', auth, wrap(async (req, res) => {
   const cfg = await getSettings();
   const existing = await dbq(sb.from('orders').select(orderSelect).eq('user_id', req.user.id).eq('delivery_date', D).maybeSingle());
   if (existing) return res.json({ date: D, locked: true, order: existing });
-  if (req.user.vacation) return res.json({ date: D, vacation: true, lines: [], subtotal: 0, mrp: 0, fee: 0, total: 0 });
+  if (onVacation(req.user, D)) return res.json({ date: D, vacation: true, lines: [], subtotal: 0, mrp: 0, fee: 0, total: 0 });
   const [subs, cart, pm] = await Promise.all([
     dbq(sb.from('subscriptions').select('*').eq('user_id', req.user.id)),
     dbq(sb.from('cart_items').select('*').eq('user_id', req.user.id)),
@@ -315,7 +343,7 @@ app.post('/api/topup', auth, wrap(async (req, res) => {
   let bonus = 0, code = String(req.body.coupon_code || '').trim().toUpperCase();
   if (code) {
     const c = await dbq(sb.from('coupons').select('*').eq('code', code).eq('active', true).maybeSingle());
-    if (!c) bad('कूपन सही नहीं है');
+    if (!c || (c.valid_till && c.valid_till < istParts().date)) bad('कूपन सही नहीं है या उसकी तारीख़ निकल चुकी है');
     if (amount < num(c.min_amount)) bad(`इस कूपन के लिए कम से कम ₹${c.min_amount} रिचार्ज करें`);
     const used = await dbq(sb.from('topups').select('id').eq('user_id', req.user.id).eq('coupon_code', code).neq('status', 'rejected').limit(1));
     if (used.length) bad('यह कूपन आप पहले इस्तेमाल कर चुके हैं');
@@ -406,10 +434,11 @@ async function generateOrdersForDate(D) {
   const cfg = await getSettings();
   const pay = cfg.payments || {}, dcfg = cfg.delivery || {}, lowBal = num((cfg.alerts || {}).low_balance, 100);
   const pm = await loadProdMap();
-  const users = await dbq(sb.from('users').select('*').eq('role', 'customer').eq('blocked', false).eq('vacation', false));
+  const users = await dbq(sb.from('users').select('*').eq('role', 'customer').eq('blocked', false));
   const stats = { created: 0, paid: 0, held: 0, cod: 0, upi: 0, revenue: 0, skipped: 0 };
   for (const u of users) {
     try {
+      if (onVacation(u, D)) { stats.vacation = (stats.vacation || 0) + 1; continue; }
       const have = await dbq(sb.from('orders').select('id').eq('user_id', u.id).eq('delivery_date', D).maybeSingle());
       if (have) { stats.skipped++; continue; }
       const [subs, cart] = await Promise.all([
@@ -428,7 +457,7 @@ async function generateOrdersForDate(D) {
       const order_no = `AKD-${D.replace(/-/g, '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       const order = await dbq(sb.from('orders').insert({
         order_no, user_id: u.id, delivery_date: D, status: 'placed', pay_method: method, pay_status: 'pending',
-        subtotal, mrp_total: mrpTot, fee, total, society_name: soc ? soc.name : '', flat: u.flat, deliv_pref: u.deliv_pref,
+        subtotal, mrp_total: mrpTot, fee, total, society_name: soc ? soc.name : '', flat: u.flat, deliv_pref: [u.deliv_pref, u.call_before ? '📞 पहुँचने से पहले कॉल करें' : '', u.door_note ? '📝 ' + u.door_note : ''].filter(Boolean).join(' • '),
         customer_name: u.name, customer_phone: u.phone
       }).select().single());
       await dbq(sb.from('order_items').insert(lines.map(l => ({ order_id: order.id, product_id: l.pid, name: l.product.name, unit: l.product.unit, qty: l.qty, rate: l.rate, mrp: l.mrp, from_sub: l.sq, from_once: l.oq }))));
@@ -541,8 +570,8 @@ app.get('/api/admin/dashboard', ...admin, wrap(async (req, res) => {
   const cfg = await getSettings(), lowStock = num((cfg.alerts || {}).low_stock, 10), lowBal = num((cfg.alerts || {}).low_balance, 100);
   const [orders, customers, subs, products, pendTop, pendRef, openTk, verifyOrders] = await Promise.all([
     dbq(sb.from('orders').select('total,status,pay_method,pay_status').eq('delivery_date', D)),
-    dbq(sb.from('users').select('id,name,phone,email,wallet_main,wallet_cb').eq('role', 'customer')),
-    dbq(sb.from('subscriptions').select('id').eq('active', true)),
+    dbq(sb.from('users').select('id,name,phone,email,flat,vacation,wallet_main,wallet_cb').eq('role', 'customer')),
+    dbq(sb.from('subscriptions').select('id,user_id,product_id,qty,pattern,days').eq('active', true)),
     dbq(sb.from('products').select('id,name,unit,stock_qty,in_stock').eq('active', true)),
     dbq(sb.from('topups').select('id').eq('status', 'pending')),
     dbq(sb.from('refund_requests').select('id').eq('status', 'pending')),
@@ -552,7 +581,8 @@ app.get('/api/admin/dashboard', ...admin, wrap(async (req, res) => {
   const live = orders.filter(o => o.status !== 'cancelled');
   res.json({
     date: D, orders: live.length, revenue: money(live.reduce((a, o) => a + num(o.total), 0)),
-    held: live.filter(o => o.status === 'on_hold').length, subs: subs.length, customers: customers.length,
+    held: live.filter(o => o.status === 'on_hold').length, subs: subs.length,
+    subs_list: (() => { const cm = Object.fromEntries(customers.map(c => [c.id, c])), pmap = Object.fromEntries(products.map(p => [p.id, p])); return subs.map(x => ({ name: (cm[x.user_id] || {}).name || (cm[x.user_id] || {}).email || '?', phone: (cm[x.user_id] || {}).phone || '', flat: (cm[x.user_id] || {}).flat || '', vacation: !!(cm[x.user_id] || {}).vacation, product: (pmap[x.product_id] || {}).name || '?', unit: (pmap[x.product_id] || {}).unit || '', qty: x.qty, pattern: x.pattern, days: x.days })).sort((a, b) => String(a.name).localeCompare(String(b.name))); })(), customers: customers.length,
     wallet_total: money(customers.reduce((a, c) => a + num(c.wallet_main) + num(c.wallet_cb), 0)), skus: products.length,
     pending_topups: pendTop.length, pending_refunds: pendRef.length, open_tickets: openTk.length, verify_orders: verifyOrders.length,
     low_stock: products.filter(p => p.stock_qty <= lowStock),
@@ -692,11 +722,11 @@ app.delete('/api/admin/products/:id', ...admin, wrap(async (req, res) => {
 const crud = {
   categories: { pk: 'id', fields: ['id', 'name', 'img', 'sort', 'active'] },
   banners: { pk: 'id', fields: ['tag', 'title', 'sub', 'bg', 'icon', 'badge', 'img', 'sort', 'active'] },
-  coupons: { pk: 'code', fields: ['code', 'min_amount', 'bonus', 'descr', 'active'] },
+  coupons: { pk: 'code', fields: ['code', 'min_amount', 'bonus', 'descr', 'active', 'valid_till'] },
   societies: { pk: 'id', fields: ['name', 'active'] }
 };
 for (const [t, c] of Object.entries(crud)) {
-  const pick = b => Object.fromEntries(c.fields.filter(f => b[f] !== undefined).map(f => [f, ['min_amount', 'bonus', 'sort'].includes(f) ? num(b[f]) : (f === 'active' ? !!b[f] : String(b[f]).slice(0, 400))]));
+  const pick = b => Object.fromEntries(c.fields.filter(f => b[f] !== undefined).map(f => [f, f === 'valid_till' ? (b[f] ? String(b[f]).slice(0, 10) : null) : ['min_amount', 'bonus', 'sort'].includes(f) ? num(b[f]) : (f === 'active' ? !!b[f] : String(b[f]).slice(0, 400))]));
   app.get(`/api/admin/${t}`, ...admin, wrap(async (req, res) => res.json({ rows: await dbq(sb.from(t).select('*').order(c.pk)) })));
   app.post(`/api/admin/${t}`, ...admin, wrap(async (req, res) => {
     const o = pick(req.body);

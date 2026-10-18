@@ -30,17 +30,24 @@ const waLink = (ph, txt) => `https://wa.me/${(ph || '').replace(/\D/g, '').lengt
 // ---------------------------------------------------------------- 1. डिस्पैच
 async function admDisp() {
   const isAdmin = ME.user.role === 'admin';
-  const date = AD.date || C.next_date; AD.date = date;
+  const q = AD.date ? '?date=' + AD.date : '';
   let orders, riders = [], dash = null;
-  if (isAdmin) { const [o, d] = await Promise.all([adm('GET', '/orders?date=' + date), adm('GET', '/dashboard?date=' + date)]); orders = o.orders; riders = o.riders; dash = d; }
-  else orders = (await api('/rider/orders?date=' + date)).orders;
+  if (isAdmin) { const [o, d] = await Promise.all([adm('GET', '/orders' + q), adm('GET', '/dashboard' + q)]); orders = o.orders; riders = o.riders; dash = d; AD.date = o.date; }
+  else { const r = await api('/rider/orders' + q); orders = r.orders; AD.date = r.date; }
+  const date = AD.date;
   AD.orders = orders; AD.riders = riders;
   const live = orders.filter(o => o.status !== 'cancelled');
   // पैकिंग सारांश
   const pack = {}; live.forEach(o => o.order_items.forEach(i => { const k = i.name + ' (' + i.unit + ')'; pack[k] = (pack[k] || 0) + i.qty; }));
   const bySoc = {}; live.forEach(o => { (bySoc[o.society_name || '— सोसायटी नहीं —'] = bySoc[o.society_name || '— सोसायटी नहीं —'] || []).push(o); });
   const kpi = (l, v, c) => `<div class="${CARD} !p-3.5"><span class="text-slate-400 text-xs">${l}</span><p class="text-2xl font-extrabold ${c} mt-1">${v}</p></div>`;
-  let h = `<div class="${CARD} flex flex-wrap items-center gap-2 text-xs"><b class="text-amber-400">डिलीवरी तारीख़:</b><input type="date" id="admDate" value="${date}" class="${IN} !w-auto"><button onclick="AD.date=$('admDate').value;admTab('disp')" class="${BTN} bg-amber-400 text-slate-950">दिखाएं</button>${isAdmin ? `<button onclick="admRunCheckout()" class="${BTN} bg-emerald-600 text-white ml-auto"><i class="fa-solid fa-bolt mr-1"></i>इस तारीख़ का ऑटो-चेकआउट अभी चलाएं</button>` : ''}</div>`;
+  const ck = dash && dash.checkout, tm = ts => new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const sinfo = j => { try { const s = JSON.parse(j.info || '{}'); return `बने ${s.created || 0} • वॉलेट से पेड ${s.paid || 0} • होल्ड ${s.held || 0} • COD ${s.cod || 0} • UPI ${s.upi || 0}`; } catch { return ''; } };
+  let h = ck ? `<div class="${CARD} text-xs space-y-1 border-emerald-700/50"><b class="text-emerald-400"><i class="fa-solid fa-clock mr-1"></i>ऑटो-चेकआउट (कटऑफ़ ${E(ck.cutoff)}, अभी ${E(ck.now)})</b>
+    <p>${ck.done ? `✅ <b>${fmtDate(ck.target)}</b> की डिलीवरी के ऑर्डर बन चुके हैं (${tm(ck.done.finished_at)}) — ${E(sinfo(ck.done))}` : `⏳ <b>${fmtDate(ck.target)}</b> की डिलीवरी के ऑर्डर आज <b>${E(ck.cutoff)}</b> बजे अपने-आप बनेंगे और वॉलेट से पैसा कटेगा।`}</p>
+    ${ck.last && !(ck.done && ck.done.run_date === ck.last.run_date) ? `<p class="text-slate-400">पिछला चेकआउट: ${fmtDate(ck.last.run_date)} की डिलीवरी (${tm(ck.last.finished_at)}) — ${E(sinfo(ck.last))}</p>` : ''}
+    <p class="text-slate-500">नीचे दिखी तारीख़ वही है जिसके ऑर्डर बन चुके हैं। दूसरी तारीख़ देखनी हो तो चुनकर "दिखाएं" दबाएं।</p></div>` : '';
+  h += `<div class="${CARD} flex flex-wrap items-center gap-2 text-xs"><b class="text-amber-400">डिलीवरी तारीख़:</b><input type="date" id="admDate" value="${date}" class="${IN} !w-auto"><button onclick="AD.date=$('admDate').value;admTab('disp')" class="${BTN} bg-amber-400 text-slate-950">दिखाएं</button>${isAdmin ? `<button onclick="admRunCheckout()" class="${BTN} bg-emerald-600 text-white ml-auto"><i class="fa-solid fa-bolt mr-1"></i>इस तारीख़ का ऑटो-चेकआउट अभी चलाएं</button>` : ''}</div>`;
   if (dash) {
     h += `<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">${kpi('ऑर्डर', dash.orders, 'text-white')}${kpi('कुल बिल', '₹' + dash.revenue, 'text-emerald-400')}${kpi('होल्ड (बैलेंस कम)', dash.held, 'text-rose-400')}${kpi('एक्टिव सब्सक्रिप्शन', dash.subs, 'text-amber-400')}${kpi('कस्टमर', dash.customers, 'text-sky-400')}${kpi('वॉलेट में कुल', '₹' + dash.wallet_total, 'text-sky-400')}${kpi('वेरिफाई बाकी रिचार्ज', dash.pending_topups + dash.verify_orders, 'text-amber-400')}${kpi('खुले रिफंड/टिकट', dash.pending_refunds + dash.open_tickets, 'text-rose-400')}</div>`;
     h += `<div class="grid md:grid-cols-2 gap-3 text-xs"><div class="${CARD}"><h3 class="font-extrabold text-rose-400 mb-2">⚠️ लो-स्टॉक अलर्ट</h3>${dash.low_stock.length ? dash.low_stock.map(p => `<div class="flex justify-between py-1 border-b border-slate-800"><span>${E(p.name)}</span><b class="text-rose-300">${p.stock_qty} बचे</b></div>`).join('') : '<p class="text-slate-500">सब ठीक है ✅</p>'}</div>
@@ -82,7 +89,7 @@ function admDispatchWA(rid) {
   mine.forEach((o, i) => { t += `${i + 1}. *${o.customer_name}* (${o.customer_phone})\n   📍 ${o.flat}, ${o.society_name}\n   ${o.order_items.map(x => x.name + ' ×' + x.qty).join(', ')}\n   💰 ₹${o.total} ${o.pay_method === 'cod' && o.pay_status !== 'paid' ? '(कैश लेना है)' : '(' + PAYST[o.pay_status] + ')'}\n   🔔 ${o.deliv_pref}\n`; });
   window.open(waLink(r.phone, t), '_blank');
 }
-async function admRunCheckout() { if (!confirm(`${fmtDate(AD.date)} के लिए सबके ऑर्डर अभी बनाकर बिल काटें?\n\n⚠️ यह टेस्ट/एडवांस के लिए है। इसके बाद इस तारीख़ का नाइट-जॉब दोबारा नहीं चलेगा, और ग्राहक बाद में आइटम नहीं बदल पाएँगे। जिनके वॉलेट में बैलेंस कम होगा उनका ऑर्डर 'होल्ड' पर जाएगा।`)) return; await run(async () => { const r = await adm('POST', '/run-checkout', { date: AD.date }); toast(r.skipped ? 'इस तारीख़ का चेकआउट पहले ही हो चुका है' : `🚀 ${r.created} ऑर्डर बने, ${r.held} होल्ड`); admTab('disp'); }); }
+async function admRunCheckout() { if (!confirm(`${fmtDate(AD.date)} के लिए सबके ऑर्डर अभी बनाकर बिल काटें?\n\n⚠️ यह टेस्ट/एडवांस के लिए है। जिनका ऑर्डर बन गया उनके आइटम बाद में नहीं बदल पाएँगे। जिनका नहीं बना, उनका ऑर्डर रात के कटऑफ़ पर बनता रहेगा। जिनका बन चुका है उनका पैसा दोबारा नहीं कटेगा। जिनके वॉलेट में बैलेंस कम होगा उनका ऑर्डर 'होल्ड' पर जाएगा।`)) return; await run(async () => { const r = await adm('POST', '/run-checkout', { date: AD.date }); toast(`🚀 नए ऑर्डर ${r.created} • वॉलेट से पेड ${r.paid} • होल्ड ${r.held} • पहले से बने ${r.skipped}`); admTab('disp'); }); }
 
 // ---------------------------------------------------------------- 2. रिचार्ज / रिफंड / सपोर्ट
 async function admPay() {

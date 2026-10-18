@@ -51,6 +51,12 @@ async function getSettings(force) {
   _cfgAt = Date.now();
   return _cfg;
 }
+// एडमिन/राइडर के लिए डिफ़ॉल्ट तारीख़: जिस सबसे आगे की तारीख़ के ऑर्डर बन चुके हैं (आज या कल); वरना कल
+async function staffDate() {
+  const today = istParts().date;
+  const r = await dbq(sb.from('orders').select('delivery_date').neq('status', 'cancelled').gte('delivery_date', today).order('delivery_date', { ascending: false }).limit(1));
+  return r.length ? r[0].delivery_date : addDays(today, 1);
+}
 async function cutoffInfo() {
   const cfg = await getSettings();
   const [ch, cm] = String((cfg.delivery || {}).cutoff || '23:59').split(':').map(Number);
@@ -481,7 +487,8 @@ async function generateOrdersForDate(D) {
   return stats;
 }
 
-async function runNightlyJob(D) {
+async function runNightlyJob(D, manual) {
+  if (manual) { const stats = await generateOrdersForDate(D); return { date: D, manual: true, ...stats }; } // एडमिन के हाथ से चलाने पर नाइट-जॉब का रिकॉर्ड नहीं बनता, ताकि रात का जॉब बाकी ग्राहकों के लिए फिर भी चले
   const done = await dbq(sb.from('job_runs').select('job').eq('job', 'orders').eq('run_date', D).maybeSingle());
   if (done) return { skipped: true, date: D };
   const stats = await generateOrdersForDate(D);
@@ -531,7 +538,7 @@ async function setOrderStatus(id, status, actor) {
 // ------------------------------------------------------------------ STAFF (राइडर + एडमिन)
 const staff = [auth, needRole('admin', 'rider')];
 app.get('/api/rider/orders', ...staff, wrap(async (req, res) => {
-  const D = validDate(req.query.date) ? req.query.date : (await cutoffInfo()).nextDate;
+  const D = validDate(req.query.date) ? req.query.date : await staffDate();
   let q = sb.from('orders').select(orderSelect).eq('delivery_date', D).neq('status', 'cancelled').order('society_name').order('flat');
   if (req.user.role === 'rider') q = q.eq('rider_id', req.user.id);
   res.json({ date: D, orders: await dbq(q) });
@@ -566,9 +573,11 @@ const rangeQ = req => {
 
 app.get('/api/admin/dashboard', ...admin, wrap(async (req, res) => {
   const ci = await cutoffInfo();
-  const D = validDate(req.query.date) ? req.query.date : ci.nextDate;
+  const D = validDate(req.query.date) ? req.query.date : await staffDate();
   const cfg = await getSettings(), lowStock = num((cfg.alerts || {}).low_stock, 10), lowBal = num((cfg.alerts || {}).low_balance, 100);
-  const [orders, customers, subs, products, pendTop, pendRef, openTk, verifyOrders] = await Promise.all([
+  const target = addDays(ci.now.date, 1);
+  const [jobRows, orders, customers, subs, products, pendTop, pendRef, openTk, verifyOrders] = await Promise.all([
+    dbq(sb.from('job_runs').select('*').eq('job', 'orders').order('run_date', { ascending: false }).limit(3)),
     dbq(sb.from('orders').select('total,status,pay_method,pay_status').eq('delivery_date', D)),
     dbq(sb.from('users').select('id,name,phone,email,flat,vacation,wallet_main,wallet_cb').eq('role', 'customer')),
     dbq(sb.from('subscriptions').select('id,user_id,product_id,qty,pattern,days').eq('active', true)),
@@ -580,6 +589,7 @@ app.get('/api/admin/dashboard', ...admin, wrap(async (req, res) => {
   ]);
   const live = orders.filter(o => o.status !== 'cancelled');
   res.json({
+    checkout: { cutoff: String((cfg.delivery || {}).cutoff || '23:59'), now: `${String(ci.now.hour).padStart(2, '0')}:${String(ci.now.minute).padStart(2, '0')}`, target, done: jobRows.find(j => j.run_date === target) || null, last: jobRows[0] || null },
     date: D, orders: live.length, revenue: money(live.reduce((a, o) => a + num(o.total), 0)),
     held: live.filter(o => o.status === 'on_hold').length, subs: subs.length,
     subs_list: (() => { const cm = Object.fromEntries(customers.map(c => [c.id, c])), pmap = Object.fromEntries(products.map(p => [p.id, p])); return subs.map(x => ({ name: (cm[x.user_id] || {}).name || (cm[x.user_id] || {}).email || '?', phone: (cm[x.user_id] || {}).phone || '', flat: (cm[x.user_id] || {}).flat || '', vacation: !!(cm[x.user_id] || {}).vacation, product: (pmap[x.product_id] || {}).name || '?', unit: (pmap[x.product_id] || {}).unit || '', qty: x.qty, pattern: x.pattern, days: x.days })).sort((a, b) => String(a.name).localeCompare(String(b.name))); })(), customers: customers.length,
@@ -592,7 +602,7 @@ app.get('/api/admin/dashboard', ...admin, wrap(async (req, res) => {
 
 app.get('/api/admin/orders', ...admin, wrap(async (req, res) => {
   if (req.query.verify) return res.json({ orders: await dbq(sb.from('orders').select(orderSelect).eq('pay_status', 'verify').order('id', { ascending: false }).limit(100)) });
-  const D = validDate(req.query.date) ? req.query.date : (await cutoffInfo()).nextDate;
+  const D = validDate(req.query.date) ? req.query.date : await staffDate();
   const rows = await dbq(sb.from('orders').select(orderSelect).eq('delivery_date', D).order('society_name').order('flat'));
   const riders = await dbq(sb.from('users').select('id,name,email,phone').eq('role', 'rider'));
   res.json({ date: D, orders: rows, riders });
@@ -617,7 +627,7 @@ app.post('/api/admin/assign-riders', ...admin, wrap(async (req, res) => {
 }));
 app.post('/api/admin/run-checkout', ...admin, wrap(async (req, res) => {
   const D = validDate(req.body.date) ? req.body.date : (await cutoffInfo()).nextDate;
-  res.json(await runNightlyJob(D));
+  res.json(await runNightlyJob(D, true));
 }));
 
 // टॉपअप
